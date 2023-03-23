@@ -9,7 +9,9 @@ This plugin is based on Medusa's official [Sendgrid plugin](https://docs.medusaj
 If no values are defined for a given option, the plugin will not try to send an email for that event.
 
 ```js
-{
+  {
+    resolve: `medusa-plugin-mailjet`,
+    options: {
       public_key: process.env.MAILJET_PUBLIC_KEY, //required
       private_key: process.env.MAILJET_PRIVATE_KEY, //required
       from: 'Medusa hello@medusa.example', //Name[space]email
@@ -36,6 +38,7 @@ If no values are defined for a given option, the plugin will not try to send an 
         },
       },
     },
+  }
 ```
 
 ## Dynamic usage

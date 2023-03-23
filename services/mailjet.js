@@ -169,7 +169,7 @@ var MailJetService = /*#__PURE__*/function (_NotificationService) {
             case 8:
               attachments = _context2.sent;
               // console.log('event', event)
-              console.log('eventData new Plugin', eventData);
+              // console.log('eventData', eventData)
               // console.log('data', data)
               // console.log('attachments', attachments)
 
@@ -197,9 +197,9 @@ var MailJetService = /*#__PURE__*/function (_NotificationService) {
                   };
                 });
               }
-              _context2.next = 15;
+              _context2.next = 14;
               return this.sendEmail(sendOptions);
-            case 15:
+            case 14:
               status = _context2.sent;
               // We don't want heavy docs stored in DB
               delete sendOptions.attachments;
@@ -208,7 +208,7 @@ var MailJetService = /*#__PURE__*/function (_NotificationService) {
                 status: status,
                 data: sendOptions
               });
-            case 18:
+            case 17:
             case "end":
               return _context2.stop();
           }

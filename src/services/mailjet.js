@@ -152,7 +152,7 @@ class MailJetService extends NotificationService {
     )
 
     // console.log('event', event)
-    console.log('eventData new Plugin', eventData)
+    // console.log('eventData', eventData)
     // console.log('data', data)
     // console.log('attachments', attachments)
 
