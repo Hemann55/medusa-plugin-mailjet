@@ -27,7 +27,7 @@ If no values are defined for a given option, the plugin will not try to send an 
       localization: {
         'de-DE': {
           // locale key
-          customer_created_template: '[used on customer.created]'
+          customer_created_template: '[used on customer.created]',
           gift_card_created_template: '[used on gift_card.created]',
           order_placed_template: '[used on order.placed]',
           order_canceled_template: '[used on order.canceled]',
