@@ -711,7 +711,8 @@ var MailJetService = /*#__PURE__*/function (_NotificationService) {
     key: "gcCreatedData",
     value: function () {
       var _gcCreatedData = (0, _asyncToGenerator2["default"])( /*#__PURE__*/_regenerator["default"].mark(function _callee10(_ref6) {
-        var id, giftCard, taxRate, locale;
+        var _giftCard$metadata, _giftCard$metadata2;
+        var id, giftCard, taxRate, locale, email;
         return _regenerator["default"].wrap(function _callee10$(_context10) {
           while (1) switch (_context10.prev = _context10.next) {
             case 0:
@@ -722,23 +723,29 @@ var MailJetService = /*#__PURE__*/function (_NotificationService) {
               });
             case 3:
               giftCard = _context10.sent;
-              if (giftCard.order) {
-                _context10.next = 6;
+              taxRate = giftCard.region.tax_rate / 100;
+              if (!giftCard.order) {
+                _context10.next = 11;
                 break;
               }
-              return _context10.abrupt("return");
-            case 6:
-              taxRate = giftCard.region.tax_rate / 100;
-              _context10.next = 9;
-              return this.extractLocale(order);
-            case 9:
-              locale = _context10.sent;
+              _context10.next = 8;
+              return this.extractLocale(giftCard.order);
+            case 8:
+              _context10.t0 = _context10.sent;
+              _context10.next = 12;
+              break;
+            case 11:
+              _context10.t0 = null;
+            case 12:
+              locale = _context10.t0;
+              email = giftCard.order ? giftCard.order.email : giftCard.metadata.email;
               return _context10.abrupt("return", _objectSpread(_objectSpread({}, giftCard), {}, {
                 locale: locale,
-                email: giftCard.order.email,
-                display_value: giftCard.value * (1 + taxRate)
+                email: email,
+                display_value: "".concat(this.humanPrice_(giftCard.value * 1 + taxRate, giftCard.region.currency_code), " ").concat(giftCard.region.currency_code),
+                message: ((_giftCard$metadata = giftCard.metadata) === null || _giftCard$metadata === void 0 ? void 0 : _giftCard$metadata.message) || ((_giftCard$metadata2 = giftCard.metadata) === null || _giftCard$metadata2 === void 0 ? void 0 : _giftCard$metadata2.personal_message)
               }));
-            case 11:
+            case 15:
             case "end":
               return _context10.stop();
           }
@@ -1405,7 +1412,6 @@ var MailJetService = /*#__PURE__*/function (_NotificationService) {
               id = _ref22.id, refund_id = _ref22.refund_id;
               _context23.next = 3;
               return this.orderService_.retrieveWithTotals(id, {
-                select: ['total'],
                 relations: ['refunds', 'items']
               });
             case 3:
