@@ -98,7 +98,7 @@ class MailJetService extends NotificationService {
     ]
 
     if (this.options_.template_error_reporting) {
-      const emailString = from.split(' ')
+      const emailString = this.options_.template_error_reporting.split(' ')
 
       messages[0].TemplateErrorReporting = {
         Email: emailString[1],
@@ -115,24 +115,31 @@ class MailJetService extends NotificationService {
     }
 
     if (dynamic_template_data) {
-      messages[0].Variables = dynamic_template_data
+      const nonNull = Object.keys(dynamic_template_data).forEach((key) => {
+        if (dynamic_template_data[key] === null) {
+          delete dynamic_template_data[key]
+        }
+      })
+      messages[0].Variables = nonNull
     }
 
     if (has_attachments && attachments.length) {
       messages[0].Attachments = attachments
     }
 
-    const request = this.mailjet_.post('send', { version: 'v3.1' }).request({
-      Messages: messages,
-    })
+    //console.log('messages[0]', messages[0])
 
-    request
+    await this.mailjet_
+      .post('send', { version: 'v3.1' })
+      .request({
+        Messages: messages,
+      })
       .then((result) => {
         //console.log('result.body', result.body)
         return 'sent'
       })
       .catch((err) => {
-        //console.log('err', err)
+        //console.log('errors', err.response.data.Messages[0].Errors)
         return 'failed'
       })
   }
@@ -269,7 +276,6 @@ class MailJetService extends NotificationService {
         return this.customerCreatedData(eventData, attachmentGenerator)
       case 'customer.password_reset':
         return this.customerPasswordResetData(eventData, attachmentGenerator)
-
       case 'restock-notification.restocked':
         return await this.restockNotificationData(
           eventData,
