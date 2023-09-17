@@ -19,6 +19,8 @@
     "url": "https://github.com/Hemann55/medusa-plugin-mailjet.git"
   },
   "keywords": [
+    "medusa",
+    "mailjet",
     "medusa-plugin",
     "medusa-plugin-notification"
   ],
