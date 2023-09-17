@@ -1,5 +1,6 @@
 import Mailjet from 'node-mailjet'
 import { humanizeAmount, zeroDecimalCurrencies } from 'medusa-core-utils'
+import { IsNull, Not } from 'typeorm'
 import { NotificationService } from 'medusa-interfaces'
 
 //Mailjet docs: https://dev.mailjet.com/email/guides/send-api-v31/
@@ -37,6 +38,9 @@ class MailJetService extends NotificationService {
       fulfillmentProviderService,
       totalsService,
       productVariantService,
+      giftCardService,
+      userService,
+      logger,
     },
     options
   ) {
@@ -55,6 +59,9 @@ class MailJetService extends NotificationService {
     this.fulfillmentService_ = fulfillmentService
     this.totalsService_ = totalsService
     this.productVariantService_ = productVariantService
+    this.giftCardService_ = giftCardService
+    this.userService_ = userService
+    this.logger_ = logger
 
     this.mailjet_ = new Mailjet({
       apiKey: options.public_key,
@@ -72,9 +79,9 @@ class MailJetService extends NotificationService {
    */
   async sendEmail(options) {
     const {
-      template_id,
       from,
       to,
+      template_id,
       dynamic_template_data,
       has_attachments,
       attachments,
@@ -115,11 +122,13 @@ class MailJetService extends NotificationService {
     }
 
     if (dynamic_template_data) {
-      const nonNull = Object.keys(dynamic_template_data).forEach((key) => {
-        if (dynamic_template_data[key] === null) {
-          delete dynamic_template_data[key]
-        }
-      })
+      const nonNull = Object.entries(dynamic_template_data).reduce(
+        (acc, [k, v]) => (v ? { ...acc, [k]: v } : acc),
+        {}
+      )
+
+      //console.log("nonNull", nonNull)
+
       messages[0].Variables = nonNull
     }
 
@@ -140,18 +149,26 @@ class MailJetService extends NotificationService {
       })
       .catch((err) => {
         //console.log('errors', err.response.data.Messages[0].Errors)
+        this.logger_.error(err)
         return 'failed'
       })
   }
 
   async sendNotification(event, eventData, attachmentGenerator) {
+    const data = await this.fetchData(event, eventData, attachmentGenerator)
+
     let templateId = this.getTemplateId(event)
 
-    if (!templateId) {
-      return false
+    if (data.locale) {
+      templateId = this.getLocalizedTemplateId(event, data.locale) || templateId
     }
 
-    const data = await this.fetchData(event, eventData, attachmentGenerator)
+    if (!templateId) {
+      throw new Error(
+        `Mailjet service: No template was set for event: ${event}`
+      )
+    }
+
     const attachments = await this.fetchAttachments(
       event,
       data,
@@ -162,17 +179,12 @@ class MailJetService extends NotificationService {
     // console.log('eventData', eventData)
     // console.log('data', data)
     // console.log('attachments', attachments)
-
-    if (data.locale) {
-      templateId = this.getLocalizedTemplateId(event, data.locale) || templateId
-    }
-
     // console.log('templateId', templateId)
 
     const sendOptions = {
-      template_id: templateId,
       from: this.options_.from,
       to: data.email,
+      template_id: templateId,
       dynamic_template_data: data,
       has_attachments: attachments?.length,
     }
@@ -276,6 +288,8 @@ class MailJetService extends NotificationService {
         return this.customerCreatedData(eventData, attachmentGenerator)
       case 'customer.password_reset':
         return this.customerPasswordResetData(eventData, attachmentGenerator)
+      case 'invite.created':
+        return this.inviteCreatedData(eventData, attachmentGenerator)
       case 'restock-notification.restocked':
         return await this.restockNotificationData(
           eventData,
@@ -318,6 +332,8 @@ class MailJetService extends NotificationService {
         return this.options_.customer_created_template
       case 'customer.password_reset':
         return this.options_.customer_password_reset_template
+      case 'invite.created':
+        return this.options_.invite_created_template
       case 'restock-notification.restocked':
         return this.options_.medusa_restock_template
       case 'order.placed':
@@ -359,6 +375,8 @@ class MailJetService extends NotificationService {
           return map.customer_created_template
         case 'customer.password_reset':
           return map.customer_password_reset_template
+        case 'invite.created':
+          return map.invite_created_template
         case 'restock-notification.restocked':
           return map.medusa_restock_template
         case 'order.placed':
@@ -396,12 +414,16 @@ class MailJetService extends NotificationService {
     return data
   }
 
+  customerCreatedData(data) {
+    return data
+  }
+
   customerPasswordResetData(data) {
     return data
   }
 
-  customerCreatedData(data) {
-    return data
+  inviteCreatedData(data) {
+    return { ...data, email: data.user_email }
   }
 
   async orderShipmentCreatedData({ id, fulfillment_id }, attachmentGenerator) {
@@ -700,11 +722,8 @@ class MailJetService extends NotificationService {
     // Fetch the return request
     const returnRequest = await this.returnService_.retrieve(return_id, {
       relations: [
-        'items',
-        'items.item',
         'items.item.tax_lines',
-        'items.item.variant',
-        'items.item.variant.product',
+        'items.item.variant.product.profiles',
         'shipping_method',
         'shipping_method.tax_lines',
         'shipping_method.shipping_option',
@@ -715,7 +734,7 @@ class MailJetService extends NotificationService {
       {
         id: returnRequest.items.map(({ item_id }) => item_id),
       },
-      { relations: ['tax_lines'] }
+      { relations: ['tax_lines', 'variant', 'variant.product.profiles'] }
     )
 
     // Fetch the order
@@ -723,6 +742,7 @@ class MailJetService extends NotificationService {
       select: ['total'],
       relations: [
         'items',
+        'items.variant',
         'items.tax_lines',
         'discounts',
         'discounts.rule',
@@ -810,9 +830,11 @@ class MailJetService extends NotificationService {
       relations: [
         'additional_items',
         'additional_items.tax_lines',
+        'additional_items.variant',
         'return_order',
         'return_order.items',
         'return_order.items.item',
+        'return_order.items.item.variant',
         'return_order.shipping_method',
         'return_order.shipping_method.shipping_option',
       ],
@@ -846,12 +868,14 @@ class MailJetService extends NotificationService {
       select: ['total'],
       relations: [
         'items',
+        'items.variant',
         'discounts',
         'discounts.rule',
         'shipping_address',
         'swaps',
         'swaps.additional_items',
         'swaps.additional_items.tax_lines',
+        'swaps.additional_items.variant',
       ],
     })
 
@@ -931,10 +955,12 @@ class MailJetService extends NotificationService {
   }
 
   async swapCreatedData({ id }) {
-    const store = await this.storeService_.retrieve()
+    const store = await this.storeService_.retrieve({
+      where: { id: Not(IsNull()) },
+    })
     const swap = await this.swapService_.retrieve(id, {
       relations: [
-        'additional_items',
+        'additional_items.variant.product.profiles',
         'additional_items.tax_lines',
         'return_order',
         'return_order.items',
@@ -951,7 +977,7 @@ class MailJetService extends NotificationService {
         id: returnRequest.items.map(({ item_id }) => item_id),
       },
       {
-        relations: ['tax_lines'],
+        relations: ['tax_lines', 'variant.product.profiles'],
       }
     )
 
@@ -971,7 +997,7 @@ class MailJetService extends NotificationService {
     const order = await this.orderService_.retrieve(swap.order_id, {
       select: ['total'],
       relations: [
-        'items',
+        'items.variant.product.profiles',
         'items.tax_lines',
         'discounts',
         'discounts.rule',
@@ -979,10 +1005,12 @@ class MailJetService extends NotificationService {
         'swaps',
         'swaps.additional_items',
         'swaps.additional_items.tax_lines',
+        'swaps.additional_items.variant',
       ],
     })
 
     const cart = await this.cartService_.retrieve(swap.cart_id, {
+      relations: ['items.variant.product.profiles'],
       select: [
         'total',
         'tax_total',
@@ -1069,8 +1097,9 @@ class MailJetService extends NotificationService {
       relations: [
         'shipping_address',
         'shipping_methods',
+        'shipping_methods.shipping_option',
         'shipping_methods.tax_lines',
-        'additional_items',
+        'additional_items.variant.product.profiles',
         'additional_items.tax_lines',
         'return_order',
         'return_order.items',
@@ -1082,10 +1111,11 @@ class MailJetService extends NotificationService {
         'region',
         'items',
         'items.tax_lines',
+        'items.variant.product.profiles',
         'discounts',
         'discounts.rule',
         'swaps',
-        'swaps.additional_items',
+        'swaps.additional_items.variant.product.profiles',
         'swaps.additional_items.tax_lines',
       ],
     })
@@ -1098,6 +1128,7 @@ class MailJetService extends NotificationService {
         'shipping_total',
         'subtotal',
       ],
+      relations: ['items.variant.product.profiles'],
     })
 
     const returnRequest = swap.return_order
@@ -1106,7 +1137,7 @@ class MailJetService extends NotificationService {
         id: returnRequest.items.map(({ item_id }) => item_id),
       },
       {
-        relations: ['tax_lines'],
+        relations: ['tax_lines', 'variant.product.profiles'],
       }
     )
 
@@ -1318,6 +1349,7 @@ class MailJetService extends NotificationService {
           return cart.context.locale
         }
       } catch (err) {
+        console.log(err)
         console.warn('Failed to gather context for order')
         return null
       }

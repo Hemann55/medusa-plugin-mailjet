@@ -5,6 +5,7 @@ class NotificationSubscriber {
     this.notificationService_.subscribe('user.password_reset', 'mailjet')
     this.notificationService_.subscribe('customer.created', 'mailjet')
     this.notificationService_.subscribe('customer.password_reset', 'mailjet')
+    this.notificationService_.subscribe('invite.created', 'mailjet')
     this.notificationService_.subscribe(
       'restock-notification.restocked',
       'mailjet'
