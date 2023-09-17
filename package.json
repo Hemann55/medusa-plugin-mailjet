@@ -1,6 +1,6 @@
 {
   "name": "medusa-plugin-mailjet",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Mailjet transaction emails",
   "author": "Himanshu Walimbe",
   "license": "MIT",
