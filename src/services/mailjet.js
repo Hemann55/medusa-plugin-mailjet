@@ -157,6 +157,10 @@ class MailJetService extends NotificationService {
   async sendNotification(event, eventData, attachmentGenerator) {
     const data = await this.fetchData(event, eventData, attachmentGenerator)
 
+    if (!data) {
+      return
+    }
+
     let templateId = this.getTemplateId(event)
 
     if (data.locale) {
@@ -415,6 +419,9 @@ class MailJetService extends NotificationService {
   }
 
   customerCreatedData(data) {
+    if (!data.has_account) {
+      return null
+    }
     return data
   }
 
