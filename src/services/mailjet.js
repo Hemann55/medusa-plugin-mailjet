@@ -236,7 +236,7 @@ class MailJetService extends NotificationService {
       }
     })
 
-    const status = await sendEmail(sendOptions)
+    const status = await this.sendEmail(sendOptions)
 
     return { to: sendOptions.to, status, data: sendOptions }
   }
