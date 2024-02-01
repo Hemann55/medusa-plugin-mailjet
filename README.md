@@ -49,10 +49,13 @@ Example:
 
 ```js
 const mailjetService = scope.resolve('mailjetService')
+const sendOptions = {
+  template_id: 123XXXX,
+  from: "ACME <acme@mail.com>",
+  to: "customer@mail.com",
+  dynamic_template_data: { dynamic: "data" },
+}
 mailjetService.sendEmail(
-  'd-123....',
-  'ACME <acme@mail.com>',
-  'customer@mail.com',
-  { dynamic: 'data' }
+  sendOptions
 )
 ```
